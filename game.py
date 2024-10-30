@@ -1,5 +1,10 @@
 from random import randint
 import copy
+map=[]
+room=[]
+creatures =[]
+objects =[]
+clearScreen = True
 class item:
     x=0
     y=0
@@ -16,12 +21,11 @@ class item:
                     case "health":
                         user.health = user.health+self.stats[stats]
                     case "attack":
-                        user.attack = user.attack+self.stats[stats]
+                        user.damage = user.damage+self.stats[stats]
+            user.inventory.remove(self)
 
 class entity:
     "Any type of creature"
-    equipment = {}
-    inventory = []
     gold =0
     x=3
     y=3
@@ -31,6 +35,8 @@ class entity:
         self.sprite = sprite
         self.name = name
         self.tags = tags
+        self.inventory= []
+        self.equipment={}
         if "humanoid" in tags:
             self.equipment =  {
                 "helmet":None,
@@ -45,6 +51,7 @@ class entity:
         "equpis a item"
         if self.equipment[slot]!=None:
             self.inventory.append(self.equipment[slot])
+        self.inventory.remove(item)
         self.equipment[slot]=item
 
     def printEquipment(self,itmeSlot:str):
@@ -55,6 +62,7 @@ class entity:
             print("("+itmeSlot+"): empty")
 
     def inventoryCheck(self):
+        print(chr(27) + "[2J")
         i=0
         for x in self.inventory:
             print ("("+str(i)+") "+x.name)
@@ -75,8 +83,6 @@ class entity:
                     if self.equipment[tag]==None:
                         self.equipment[tag]=item
                         self.inventory.remove(item)
-    
-
 
     def useItem(self, item:item):
         "lets you equip an item"
@@ -107,13 +113,8 @@ class entity:
         else:
             self.gold=0
         objects.append(item)
-            
-creatures =[]
-objects =[]
 
-creatures.append(entity(10,2,"I","John Dungeon",{"player","grabby","humanoid"}))
-creatures[0].x=1
-creatures[0].y=1
+
 creaturePreset = {
     "rat":  entity(2,1,"~","Rat",{"monster"}),
     "skeleton":  entity(4,3,"|","Skeleton",{"monster","grabby","humanoid"}),
@@ -122,16 +123,15 @@ creaturePreset = {
 }
 
 itemPreset = {
-    "helmet":  item({"helmet","equip"},{"defense":1},"Bucket","^"),
-    "chainmail":  item({"armor","equip"},{"defense":1},"bunch of rings","Y"),
-    "boots":  item({"shoes","equip"},{"defense":1},"boot","_"),
-    "sword":  item({"handL","handR","equip"},{"attack":1},"big knife","/"),
-    "potion": item({"potion"},{"health":2},"healing potion","Ö")
+    "helmet":  item({"helmet","equip"},{"defense":1},"Helmet","^"),
+    "chainmail":  item({"armor","equip"},{"defense":1},"Chainmail","Y"),
+    "boots":  item({"shoes","equip"},{"defense":1},"Boots","_"),
+    "sword":  item({"handL","handR","equip"},{"attack":1},"Sword","/"),
+    "potion": item({"potion"},{"health":8},"healing potion","Ö")
 }
 
 
-map=[]
-room=[]
+
 def roomPrint(room):
     "Prints the room that is provided"
     for i in room:
@@ -161,39 +161,13 @@ def move(x:int,y:int,creature:entity):
             case " ":
                 creature.y=creature.y+y
                 creature.x=creature.x+x
+            case "D":
+                if "player" in creature.tags:
+                    newRoom()
             case _: 
                 interact = checkEntity(creature.x+x,creature.y+y)
                 if isinstance(interact, entity):
-                    if(creature==creatures[0]):
-                        tempList=[]
-                        tempList.append(interact)
-                        c=checkEntity(interact.x+1,interact.y)
-                        if isinstance(c, entity):
-                            if("monster" in c.tags):
-                                tempList.append(c)
-                        c=checkEntity(interact.x-1,interact.y)
-                        if isinstance(c, entity):
-                            if("monster" in c.tags):
-                                tempList.append(c)
-                        c=checkEntity(interact.x,interact.y+1)
-                        if isinstance(c, entity):
-                            if("monster" in c.tags):
-                                tempList.append(c)
-                        c=checkEntity(interact.x,interact.y-1)
-                        if isinstance(c, entity):
-                            if("monster" in c.tags):
-                                tempList.append(c)
-                        match(len(tempList)):
-                            case 1:
-                                combat(interact)
-                            case 2:
-                                combat(interact,tempList[1])
-                            case 3:
-                                combat(interact,tempList[1],tempList[2])
-                            case 4:
-                                combat(interact,tempList[1],tempList[2],tempList[3])
-                    else:
-                        combat(creature)
+                    creatureInteract(creature, interact)
                 elif isinstance(interact,item):
                     if interact.name=="gold":
                         creature.gold=creature.gold+next(iter(interact.tags))
@@ -206,37 +180,46 @@ def move(x:int,y:int,creature:entity):
                 
     return(0)
 
-def attack(defender,attacker):
+def creatureInteract(creature :entity, interact):
+    tempList=[]
+    monster= None
+    if "player" in creature.tags:
+        monster=interact
+    else:
+        monster=creature
+    tempList.append(monster)
+    c=checkEntity(monster.x+1,monster.y)
+    if isinstance(c, entity):
+        if("monster" in c.tags):
+            tempList.append(c)
+    c=checkEntity(monster.x-1,monster.y)
+    isMonster(tempList, c)
+    c=checkEntity(monster.x,monster.y+1)
+    isMonster(tempList, c)
+    c=checkEntity(monster.x,monster.y-1)
+    isMonster(tempList, c)
+    combat(tempList)
+
+def isMonster(tempList, c):
+    if isinstance(c, entity):
+        if("monster" in c.tags):
+            tempList.append(c)
+
+def attack(defender: entity,attacker:entity):
     #"The attacker attacks the defender"
     dead = 0
-    defender.health = defender.health - attacker.damage
+    attackDamage=attacker.getAttack()
+    defender.health = defender.health - attackDamage
     if attacker == creatures[0]:
-        print("You attacked " + defender.name + " for " + str(attacker.damage) + " damage!")
+        print("You attacked " + defender.name + " for " + str(attackDamage) + " damage!")
     elif defender == creatures[0]:
-        print(attacker.name + " attacked you for " + str(attacker.damage) + " damage!")
+        print(attacker.name + " attacked you for " + str(attackDamage) + " damage!")
         print("You're left with " + str(defender.health) + "HP")
     else:
-        print(attacker.name + " attacked " + defender.name + " for" + str(attacker.damage) + " damage!")
+        print(attacker.name + " attacked " + defender.name + " for" + str(attackDamage) + " damage!")
     if defender.health <= 0:
         print(defender.name + " died")
-        creatures.remove(defender)
         dead = dead + 1
-    return(dead)
-#def attack(defender:entity,attacker:entity):
-    "The attacker attacks the defender"
-    dead=0
-    defender.health=defender.health-attacker.getAttack()
-    print(attacker.name + " dealt " + str(attacker.getAttack()) + " damage. Leaving " + defender.name + " with " + str(defender.health) + " health remaining")
-    attacker.health=attacker.health-defender.getAttack()
-    print(defender.name + " dealt " + str(defender.getAttack()) + " damage. Leaving " + attacker.name + " with " + str(attacker.health) + " health remaining")
-    if defender.health<=0:
-        print(defender.name+" died")
-        defender.kill()
-        dead=dead+1
-    if attacker.health<=0:
-        print(attacker.name+" died")
-        attacker.kill()
-        dead=dead+1
     return(dead)
 
 def mapUpdate():
@@ -246,7 +229,8 @@ def mapUpdate():
     for i in creatures:
         map[i.y][i.x]=i.sprite
     for i in objects:
-        map[i.y][i.x]=i.sprite    
+        map[i.y][i.x]=i.sprite
+    map[len(map)-2][len(map[0])-2]="D"  
 
 def checkEntity(x:int,y:int):
     "Checks what entity is at x,y"
@@ -317,25 +301,24 @@ def createObject(y:int,x:int):
     match(randint(0,6)):
         case 0:
             tempObject=list(itemPreset.values())[randint(0,len(itemPreset)-1)]
-            tempObject.x=randint(1,x-1)
-            tempObject.y=randint(1,y-1)
-            if tempObject.x<3 and tempObject.y<3:
-                tempObject.x=3
+            objectPlacement(y, x, tempObject)
             objects.append(copy.deepcopy(tempObject))
         case 1|2:
             tempObject=item({randint(20,80)},{},"gold","g")
-            tempObject.x=randint(1,x-1)
-            tempObject.y=randint(1,y-1)
-            if tempObject.x<3 and tempObject.y<3:
-                tempObject.x=3
+            objectPlacement(y, x, tempObject)
             objects.append(copy.deepcopy(tempObject))
         case _:
             tempObject=list(creaturePreset.values())[randint(0,len(creaturePreset)-1)]
-            tempObject.x=randint(1,x-1)
-            tempObject.y=randint(1,y-1)
-            if tempObject.x<3 and tempObject.y<3:
-                tempObject.x=3
+            objectPlacement(y, x, tempObject)
             creatures.append(copy.deepcopy(tempObject))
+
+def objectPlacement(y, x, tempObject):
+    tempObject.x=randint(1,x-1)
+    tempObject.y=randint(1,y-1)
+    if tempObject.x<3 and tempObject.y<3:
+        tempObject.x=3
+    if tempObject.x==x and tempObject.y==y:
+        tempObject.x=x-1
 
 def useItem():
     #Items don't exist yet
@@ -345,24 +328,47 @@ def useItem():
         if int(itemInput)<len(creatures[0].inventory) and int(itemInput)>=0:
                 creatures[0].useItem(creatures[0].inventory[int(itemInput)])
 
-def printMonsterStats(monster1, monster2=None, monster3=None, monster4=None):
+def printMonsterStats(monsterList):
     #prints the current health and attack for each present monster in combat
-    print("(1) " + str(monster1.name) + " health: " + str(monster1.health))
-    print("    " + str(monster1.name) + " attack: " + str(monster1.damage))
-    if monster2 != None:
-        print("(2) " + str(monster2.name) + " health: " + str(monster2.health))
-        print("    " + str(monster2.name) + " attack: " + str(monster1.damage))
-    if monster3 != None:
-        print("(3) " + str(monster3.name) + " health: " + str(monster3.health))
-        print("    " + str(monster3.name) + " attack: " + str(monster3.damage))
-    if monster4 != None:
-        print("(4) " + str(monster4.name) + " health: " + str(monster4.health))
-        print("    " + str(monster4.name) + " attack: " + str(monster4.damage))
+    for monster in monsterList:
+        print("(1) " + str(monster.name) + " health: " + str(monster.health))
+        print("    " + str(monster.name) + " attack: " + str(monster.damage))
 
-def playerTurn(monster1, monster2=None, monster3=None, monster4=None):
+def attackMonster(monsterList: list):
+    inp = None
+    if len(monsterList) > 1:
+        while inp == None:
+            print("Choose who to attack!")
+            i=1
+            for monster in monsterList:
+                print( str(i)+ ") " + monster.name)
+                i=i+1
+            i=1
+            inp = input("")
+            print(chr(27) + "[2J")
+            for monster in monsterList:
+                if inp == str(i):
+                    inp == "break"
+                    if attack(monster,creatures[0]) == 1:
+                        monsterList.remove(monster)
+                        monster.kill()
+                    return
+                i=i+1
+            if inp != "break":
+                inp = None
+                print("invalid input")
+    
+    elif attack(monsterList[0],creatures[0]) == 1:
+            monster=monsterList[0]
+            monsterList.remove(monster)
+            monster.kill()
+            global clearScreen
+            clearScreen = False
+            return "combatEnd"
+
+def playerTurn(monsterList: list):
     #Player's turn in combat against at least monster1
     action = None
-    inp = None
     print("It's your turn!")
     while action not in ["1", "2", "3", "4"]:
         print("What will you do?")
@@ -371,41 +377,15 @@ def playerTurn(monster1, monster2=None, monster3=None, monster4=None):
         print("3) CHECK MONSTER STATS")
         print("4) FLEE")
         action = input("")
+        print(chr(27) + "[2J")
         match action:
             case "1":
-                if monster2 != None:
-                    while inp == None:
-                        print("Choose who to attack!")
-                        print("1) " + monster1.name)
-                        print("2) " + monster2.name)
-                        if monster3 != None:
-                            print("3) " + monster3.name)
-                        if monster4 != None:
-                            print("4) " + monster4.name)
-                        inp = input("")
-                        if inp == "1":
-                            if attack(monster1,creatures[0]) == 1:
-                                return("1dead")
-                        elif inp == "2":
-                            if attack(monster2,creatures[0]) == 1:
-                                return("2dead")
-                        elif inp == "3" and monster3 != None:
-                            if attack(monster3,creatures[0]) == 1:
-                                return("3dead")
-                        elif inp == "4" and monster4 != None:
-                            if attack(monster4,creatures[0]) == 1:
-                                return("4dead")
-                        else:
-                            inp = None
-                            print("invalid input")
-                        print("")
-                else:
-                    if attack(monster1,creatures[0]) == 1:
-                        return("combatEnd")
+                if attackMonster(monsterList)=="combatEnd":
+                    return "combatEnd"
             case "2":
                 useItem()
             case "3":
-                printMonsterStats(monster1, monster2, monster3, monster4)
+                printMonsterStats(monsterList)
             case "4":
                 print("attempting to flee...")
                 if randint(0,1) == 1:
@@ -416,74 +396,51 @@ def playerTurn(monster1, monster2=None, monster3=None, monster4=None):
             case _:
                 action = "invalid"
                 print("invalid input")
-
-def monsterTurn(monster1, monster2=None, monster3=None, monster4=None):
-    #monsters' turn, where each monster attacks the player 
-    if attack(creatures[0],monster1) == 1:
-        return("gameOver")
-    if monster2 != None:
-        if attack(creatures[0],monster2) == 1:
+        
+def monsterTurn(monsterList : list):
+    #monsters turn, where each monster attacks the player 
+    for monster in monsterList:
+        if attack(creatures[0],monster) == 1:
+            creatures[0].kill()
             return("gameOver")
-        if monster3 != None:
-            if attack(creatures[0],monster3) == 1:
-                return("gameOver")
-            if monster4 != None:
-                if attack(creatures[0],monster4) == 1:
-                    return("gameOver")
-                
 
-def combat(monster1, monster2=None, monster3=None, monster4=None):
+def combat(monsterList: list):
     #The player fights up to 4 monsters
-    if monster2 == None:
-        print("You are fighting " + monster1.name + "!")
-    elif monster3 == None:
-        print("You are fighting " + monster1.name + " and " + monster2.name + "!")
-    elif monster4 == None:
-        print("You are fighting " + monster1.name + ", " + monster2.name + " and " + monster3.name + "!")
-    else:
-        print("You are fighting " + monster1.name + ", " + monster2.name + ", " + monster3.name + " and " + monster4.name + "!")
-    fighting = 1
+    print(chr(27) + "[2J")
+    fightString = ("You are fighting "+ monsterList[0].name)
+    for monster in monsterList[1:]:
+        if monster == monsterList[-1]:
+            fightString = fightString + " and " + monster.name
+        else:
+            fightString = fightString + ", " + monster.name
+    print(fightString+"!")
+    fighting = True
     while fighting:
-        playerTurnResult = playerTurn(monster1, monster2, monster3, monster4)
-        if playerTurnResult == "combatEnd":
-            fighting = 0
-        if playerTurnResult == "1dead" or playerTurnResult == "combatEnd":
-            monster1 = None
-            monster1 = monster2
-            monster2 = None
-            if monster3 != None:
-                monster2 = monster3
-                if monster4 != None:
-                    monster3 = monster4
-                    monster4 = None
-                else:
-                    monster3 = None
-        elif playerTurnResult == "2dead":
-            monster2 = None
-            if monster3 != None:
-                monster2 = monster3
-                if monster4 != None:
-                    monster3 = monster4
-                    monster4 = None
-                else:
-                    monster3 = None
-        elif playerTurnResult == "3dead":
-            monster3 = None
-            if monster4 != None:
-                monster3 = monster4
-                monster4 = None
-        elif playerTurnResult == "4dead":
-            monster4 = None
-        if monster1 != None and playerTurnResult != "combatEnd":
-            if monsterTurn(monster1, monster2, monster3, monster4) == "gameOver":
-                fighting = 0
+        playerTurnResult = playerTurn(monsterList)
+        if playerTurnResult == "combatEnd" or monsterTurn(monsterList) == "gameOver":
+            fighting = False
+
+def newRoom():
+    global room
+    a=creatures[0]
+    creatures.clear()
+    objects.clear()
+    a.x=1
+    a.y=1
+    creatures.append(a)
+    room=generateFloor(["large","medium","small"][randint(0,2)])
 
 #Main game loop
-room=generateFloor("large")
-creatures[2].inventory.append(copy.deepcopy(itemPreset["sword"]))
+creatures.append(entity(30,3,"I","John Dungeon",{"player","grabby","humanoid"}))
+creatures[0].x=1
+creatures[0].y=1
+print(chr(27) + "[2J")
+room=generateFloor(["large","medium","small"][randint(0,2)])
 while "player" in creatures[0].tags:
+    monsterAction=True
     mapUpdate()
     roomPrint(map)
+    clearScreen=True
     match input():
         case "a":
             move(-1,0,creatures[0])
@@ -495,24 +452,43 @@ while "player" in creatures[0].tags:
             move(0,1,creatures[0])
         case "gold":
             print(creatures[0].gold)
+            clearScreen=False
+            monsterAction=False
         case "equip":
             print(creatures[0].equipment)
+            clearScreen=False
+            monsterAction=False
         case "inventory":
             creatures[0].inventoryCheck()
+            clearScreen=False
+            monsterAction=False
         case "item":
             creatures[0].inventoryCheck()
             itemInput=input("write the number of the item:")
             if itemInput.isdigit():
                 if int(itemInput)<len(creatures[0].inventory) and int(itemInput)>=0:
                     creatures[0].useItem(creatures[0].inventory[int(itemInput)])
-            
-        case "restart":
-            a=creatures[0]
-            creatures.clear()
-            objects.clear()
-            creatures.append(a)
-            generateFloor("large")
+            monsterAction=False
+        case "help":
+            print(chr(27) + "[2J")
+            monsterAction=False
+            print("You are the \'I\' you can use the following commands:")
+            print("\'w\',\'a\',\'s\' and \'d\' for movement")
+            print("\'inventory\' to check your inventory")
+            print("\'item\' to use or equip an item")
+            print("\'gold\' to check your gold")
+            print("________________________________________________________")
+            print("The map icons means the following:")
+            print("\'X\' = Wall")
+            print("\'g\' = Gold")
+            print("\'D\' is the door to the next room")
+            print("\'o\', \'~\', \'|\' and \'Z\' are different types of enemies that chase you")
+            print("the rest are items")
+            input("Write anything to continue")
+    if clearScreen:
+        print(chr(27) + "[2J")
 
     mapUpdate()
-    monsterMove(creatures[0].x,creatures[0].y)
+    if monsterAction:
+        monsterMove(creatures[0].x,creatures[0].y)
     
