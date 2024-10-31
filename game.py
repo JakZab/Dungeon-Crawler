@@ -432,6 +432,8 @@ def newRoom():
 
 #Main game loop
 creatures.append(entity(30,3,"I","John Dungeon",{"player","grabby","humanoid"}))
+creatures[0].inventory.append(copy.deepcopy(itemPreset["potion"]))
+creatures[0].inventory.append(copy.deepcopy(itemPreset["potion"]))
 creatures[0].x=1
 creatures[0].y=1
 print(chr(27) + "[2J")
@@ -451,7 +453,13 @@ while "player" in creatures[0].tags:
         case "s":
             move(0,1,creatures[0])
         case "gold":
+            print(chr(27) + "[2J")
             print(creatures[0].gold)
+            clearScreen=False
+            monsterAction=False
+        case "health":
+            print(chr(27) + "[2J")
+            print(creatures[0].health)
             clearScreen=False
             monsterAction=False
         case "equip":
@@ -459,7 +467,10 @@ while "player" in creatures[0].tags:
             clearScreen=False
             monsterAction=False
         case "inventory":
-            creatures[0].inventoryCheck()
+            if len(creatures[0].inventory)<1:
+                print("Your inventory is empty")
+            else:
+                creatures[0].inventoryCheck()
             clearScreen=False
             monsterAction=False
         case "item":
