@@ -401,6 +401,7 @@ def monsterTurn(monsterList : list):
     #monsters turn, where each monster attacks the player 
     for monster in monsterList:
         if attack(creatures[0],monster) == 1:
+            print("gold:"+ f'{creatures[0].gold}')
             creatures[0].kill()
             return("gameOver")
 
@@ -431,7 +432,7 @@ def newRoom():
     room=generateFloor(["large","medium","small"][randint(0,2)])
 
 #Main game loop
-creatures.append(entity(30,3,"I","John Dungeon",{"player","grabby","humanoid"}))
+creatures.append(entity(20,3,"I","John Dungeon",{"player","grabby","humanoid"}))
 creatures[0].inventory.append(copy.deepcopy(itemPreset["potion"]))
 creatures[0].inventory.append(copy.deepcopy(itemPreset["potion"]))
 creatures[0].x=1
@@ -502,4 +503,5 @@ while "player" in creatures[0].tags:
     mapUpdate()
     if monsterAction:
         monsterMove(creatures[0].x,creatures[0].y)
+print
     
