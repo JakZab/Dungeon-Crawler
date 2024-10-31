@@ -13,6 +13,7 @@ class item:
         self.name=name
         self.sprite=sprite
         self.stats=stats
+
     def use(self, user):
         "uses the item if possible"
         if "potion" in self.tags:
@@ -62,6 +63,7 @@ class entity:
             print("("+itmeSlot+"): empty")
 
     def inventoryCheck(self):
+        "Prints out the entities inventory"
         print(chr(27) + "[2J")
         i=0
         for x in self.inventory:
@@ -69,6 +71,7 @@ class entity:
             i=i+1
 
     def getAttack(self):
+        "gets the attack value of the creature"
         attack=self.damage
         for i in list(self.equipment.values()):
             if i:
@@ -77,6 +80,7 @@ class entity:
         return attack
 
     def autoEquip(self):
+        "auto equips items for monsters WIP"
         for item in self.inventory:
             for tag in item.tags:
                 if tag in self.equipment:
@@ -98,14 +102,16 @@ class entity:
             item.use(self)
 
     def kill(self):
+        "Kills the creature"
         global creatures
-        for x in self.inventory:
-            self.drop(x)
+        while len(self.inventory)>0:
+            self.drop(self.drop(self.inventory[0]))
         if self.gold>0:
             self.drop(item({self.gold},{},"gold","g"))
         creatures.remove(self)
     
     def drop(self, item):
+        "Dropps the item"
         item.x=self.x
         item.y=self.y
         if(item.name!="gold"):
@@ -129,8 +135,6 @@ itemPreset = {
     "sword":  item({"handL","handR","equip"},{"attack":1},"Sword","/"),
     "potion": item({"potion"},{"health":8},"healing potion","Ö")
 }
-
-
 
 def roomPrint(room):
     "Prints the room that is provided"
@@ -181,6 +185,7 @@ def move(x:int,y:int,creature:entity):
     return(0)
 
 def creatureInteract(creature :entity, interact):
+    "A method that handles interactions between two creatures"
     tempList=[]
     monster= None
     if "player" in creature.tags:
@@ -201,12 +206,13 @@ def creatureInteract(creature :entity, interact):
     combat(tempList)
 
 def isMonster(tempList, c):
+    "is c a monster returns bool"
     if isinstance(c, entity):
         if("monster" in c.tags):
             tempList.append(c)
 
 def attack(defender: entity,attacker:entity):
-    #"The attacker attacks the defender"
+    "The attacker attacks the defender"
     dead = 0
     attackDamage=attacker.getAttack()
     defender.health = defender.health - attackDamage
@@ -304,15 +310,17 @@ def createObject(y:int,x:int):
             objectPlacement(y, x, tempObject)
             objects.append(copy.deepcopy(tempObject))
         case 1|2:
-            tempObject=item({randint(20,80)},{},"gold","g")
+            tempObject=item({randint(10,30)},{},"gold","g")
             objectPlacement(y, x, tempObject)
             objects.append(copy.deepcopy(tempObject))
         case _:
             tempObject=list(creaturePreset.values())[randint(0,len(creaturePreset)-1)]
             objectPlacement(y, x, tempObject)
             creatures.append(copy.deepcopy(tempObject))
+            creatures[-1].gold=randint(5,25)
 
 def objectPlacement(y, x, tempObject):
+    "Places tempObject at x,y"
     tempObject.x=randint(1,x-1)
     tempObject.y=randint(1,y-1)
     if tempObject.x<3 and tempObject.y<3:
@@ -321,7 +329,7 @@ def objectPlacement(y, x, tempObject):
         tempObject.x=x-1
 
 def useItem():
-    #Items don't exist yet
+    #uses the item
     creatures[0].inventoryCheck()
     itemInput=input("write the number of the item:")
     if itemInput.isdigit():
@@ -335,6 +343,7 @@ def printMonsterStats(monsterList):
         print("    " + str(monster.name) + " attack: " + str(monster.damage))
 
 def attackMonster(monsterList: list):
+    "attacks the monsters in the list"
     inp = None
     if len(monsterList) > 1:
         while inp == None:
@@ -401,7 +410,7 @@ def monsterTurn(monsterList : list):
     #monsters turn, where each monster attacks the player 
     for monster in monsterList:
         if attack(creatures[0],monster) == 1:
-            print("gold:"+ f'{creatures[0].gold}')
+            print("Gold:"+ f'{creatures[0].gold}')
             creatures[0].kill()
             return("gameOver")
 
@@ -422,6 +431,7 @@ def combat(monsterList: list):
             fighting = False
 
 def newRoom():
+    "generates a new room"
     global room
     a=creatures[0]
     creatures.clear()
